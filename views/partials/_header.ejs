@@ -6,9 +6,11 @@
         <input type="submit" value="Sign In">
       </form>
     <%} else {%>
-      <span> <%=username%> </span>
+      <form action="/logout" method="POST">
+        <span> <%=username%> </span>
+        <button type="submit" value="Logout">Logout</button>
+      </form>
       <% } %>
-
 </header>
 
 
