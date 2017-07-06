@@ -24,27 +24,82 @@ const users = {
   },
   "ValR": {
     id: "ValR",
-    email: "valr2@hotmail.com",
+    email: "valr@hotmail.com",
     password: "valpswd"
   }
 };
 
 
+function emailExist(email) {
+  for (let userKey in users) {
+    console.log(users[userKey].email);
+    if (users[userKey].email === email) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function userForExistingEmail(email) {
+  for (let userKey in users) {
+    if (users[userKey].email === email) {
+      return users[userKey];
+    }
+  }
+}
+
+
+
+app.get("/login", (req, res) => {
+  let templateVars = {
+     URLs: urlDatabase,
+     user: users[req.cookies["user_id"]]
+  };
+  res.render("login", templateVars);
+});
+
 app.get("/register", (req, res) => {
   res.render("registrationForm")
 });
 
-app.post("/register", (req, res) => {
- let userID = generateRandomString();
- users[userID] = {
-  id: userID,
-  email: req.body.email,
-  password: req.body.password
+
+app.post("/login", (req, res) => {
+  if (!emailExist(req.body.email)) {
+    res.status(403);
+    res.send('Email does not exist!');
   }
-  console.log(users);
-  res.cookie(userID);
-  res.redirect('/urls');
+  else if (userForExistingEmail(req.body.email).password !== req.body.password) {
+    res.status(403);
+    res.send('Password does not exist!');
+  }
+  else {
+    res.cookie('user_id', userForExistingEmail(req.body.email).id);
+    res.redirect('/urls');
+  }
 });
+
+
+
+app.post("/register", (req, res) => {
+  if (!req.body.email || !req.body.password) {
+    res.status(400);
+    res.send('Cannot submit empty field');
+  } else if (emailExist(req.body.email)) {
+    res.status(400);
+    res.send('Email already registered');
+  }
+  let userID = generateRandomString();
+    users[userID] = {
+    id: userID,
+    email: req.body.email,
+    password: req.body.password
+  }
+   console.log(users);
+   res.cookie("user_id", userID);
+   res.redirect('/urls');
+});
+
+
 
 app.post("/urls", (req, res) => {
  let shortURL = generateRandomString();
@@ -52,16 +107,12 @@ app.post("/urls", (req, res) => {
  res.redirect("/urls/" + shortURL);
 });
 
+//------------------
 
 
-app.post("/login", (req, res) => {
-  res.cookie('username', req.body.username);
-  console.log(res.cookies);
-  res.redirect('/urls');
-});
 
 app.post("/logout", (req, res) => {
-  res.clearCookie('username');
+  res.clearCookie('user_id');
   res.redirect('/urls');
 });
 
@@ -74,8 +125,9 @@ app.get("/", (req, res) => {
 app.get("/urls", (req, res) => {
   let templateVars = {
     URLs: urlDatabase,
-    username: req.cookies["username"]
+    user: users[req.cookies["user_id"]]
   };
+  console.log(templateVars);
   res.render('urls_index', templateVars);
 });
 
@@ -112,7 +164,7 @@ app.get("/urls/:id", (req, res) => {
   {
     shortURL: req.params.id,
     longURL: urlDatabase[shortURL],
-    username: req.cookies["username"]
+    user: users[req.cookies["user_id"]]
   };
   res.render("urls_show", templateVars);
 });

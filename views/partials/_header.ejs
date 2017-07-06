@@ -1,16 +1,14 @@
 <header>
   <h1>URL Shortener</h1>
-    <% if (!username) { %>
-      <form action="/login" method="POST">
-        <input type="text" name="username" style="width: 300px">
-        <input type="submit" value="Sign In">
-      </form>
-    <%} else {%>
+    <% if (!user) { %>
+      <a href="/register">Register</a>
+      <a href="/login">Log In</a>
+    <% } else { %>
       <form action="/logout" method="POST">
-        <span> <%=username%> </span>
-        <button type="submit" value="Logout">Logout</button>
+        <span> <%=user.email%> </span>
+        <input type="submit" value="Logout">
       </form>
-      <% } %>
+    <% } %>
 </header>
 
 
