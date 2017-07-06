@@ -11,11 +11,48 @@ app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieParser());
 
 
-
 var urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com"
 };
+
+const users = {
+  "JulieR": {
+    id: "JulieR",
+    email: "julier@gmail.com",
+    password: "juliepswd"
+  },
+  "ValR": {
+    id: "ValR",
+    email: "valr2@hotmail.com",
+    password: "valpswd"
+  }
+};
+
+
+app.get("/register", (req, res) => {
+  res.render("registrationForm")
+});
+
+app.post("/register", (req, res) => {
+ let userID = generateRandomString();
+ users[userID] = {
+  id: userID,
+  email: req.body.email,
+  password: req.body.password
+  }
+  console.log(users);
+  res.cookie(userID);
+  res.redirect('/urls');
+});
+
+app.post("/urls", (req, res) => {
+ let shortURL = generateRandomString();
+ urlDatabase[shortURL] = req.body.longURL;
+ res.redirect("/urls/" + shortURL);
+});
+
+
 
 app.post("/login", (req, res) => {
   res.cookie('username', req.body.username);
@@ -46,11 +83,7 @@ app.get("/urls/new", (req, res) => {
   res.render("urls_new");
 });
 
-app.post("/urls", (req, res) => {
- let shortURL = generateRandomString();
- urlDatabase[shortURL] = req.body.longURL;
- res.redirect("/urls/" + shortURL);
-});
+
 
 app.post("/urls/:shortURL/delete", (req, res) => {
   let shortURL = req.params.shortURL;
