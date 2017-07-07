@@ -1,3 +1,4 @@
+//LIBRARIES & ASSOCIATED STUFF----------------
 const express = require("express");
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
@@ -5,15 +6,17 @@ const cookieParser = require("cookie-parser");
 var app = express();
 var PORT = process.env.PORT || 8080; // default port 8080
 
-
 app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieParser());
 
+//ORIGINAL OBJECTS--------------------
 
-var urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+const urlDatabase = {
+  "JulieR": {
+    "b2xVn2": "http://www.lighthouselabs.ca",
+    "9sm5xK": "http://www.google.com"
+  }
 };
 
 const users = {
@@ -29,7 +32,21 @@ const users = {
   }
 };
 
+//FUNCTIONS----------------------------
 
+//FUNC THAT GENERATES A RANDOM STR OF 6 CHARACS - USED FOR SHORT-URLS & USER-IDS
+function generateRandomString() {
+  var randStr = "";
+  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (let i = 0; i < 6; i++) {
+    randStr += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return randStr;
+}
+
+//FUNC THAT CHECKS IF AN EMAIL PASSED TO IT EXISTS IN THE USERS OBJECT
+//returns true if it is
+//returns false if it's not
 function emailExist(email) {
   for (let userKey in users) {
     console.log(users[userKey].email);
@@ -40,6 +57,7 @@ function emailExist(email) {
   return false;
 }
 
+//FUNC THAT RETURNS THE USERKEY FROM THE USERS ARRAY THAT HAS A CERTAIN EMAIL
 function userForExistingEmail(email) {
   for (let userKey in users) {
     if (users[userKey].email === email) {
@@ -48,8 +66,28 @@ function userForExistingEmail(email) {
   }
 }
 
+function urlsForUser(id) {
+  return urlDatabase[id];
+}
 
+//ROUTES------------------------
 
+//POST + /URLS
+app.post("/urls", (req, res) => {
+  //checking if userid is in URLdatabase
+  //if it is, add url pair as value to userIDKey
+  let shortURL = generateRandomString();
+  for (let userIDKey in urlDatabase) {
+    if (req.cookies["user_id"] === userIDKey) {
+      urlDatabase[userIDKey][shortURL] = req.body.longURL;
+    }
+  }
+  //redirects to urls_show
+  res.redirect("/urls/" + shortURL);
+  console.log(urlDatabase);
+});
+
+//GET + /LOGIN
 app.get("/login", (req, res) => {
   let templateVars = {
      URLs: urlDatabase,
@@ -88,26 +126,21 @@ app.post("/register", (req, res) => {
     res.status(400);
     res.send('Email already registered');
   }
+  //add random string as userID for user registers
   let userID = generateRandomString();
     users[userID] = {
     id: userID,
     email: req.body.email,
     password: req.body.password
   }
-   console.log(users);
-   res.cookie("user_id", userID);
-   res.redirect('/urls');
+  urlDatabase[userID] = {}
+   //console.log(users);
+  res.cookie("user_id", userID);
+  res.redirect('/urls');
 });
 
 
 
-app.post("/urls", (req, res) => {
- let shortURL = generateRandomString();
- urlDatabase[shortURL] = req.body.longURL;
- res.redirect("/urls/" + shortURL);
-});
-
-//------------------
 
 
 
@@ -124,7 +157,7 @@ app.get("/", (req, res) => {
 
 app.get("/urls", (req, res) => {
   let templateVars = {
-    URLs: urlDatabase,
+    URLs: urlsForUser(req.cookies["user_id"]),
     user: users[req.cookies["user_id"]]
   };
   console.log(templateVars);
@@ -132,20 +165,29 @@ app.get("/urls", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) => {
-  res.render("urls_new");
+  let templateVars = {
+    URLs: urlDatabase,
+    user: users[req.cookies["user_id"]]
+  };
+  if (req.cookies.user_id) {
+    res.render("urls_new", templateVars);
+  }
+  else {
+    res.redirect("/urls");
+  }
 });
 
 
 
 app.post("/urls/:shortURL/delete", (req, res) => {
   let shortURL = req.params.shortURL;
-  delete urlDatabase[shortURL];
+  delete urlDatabase[req.cookies["user_id"]][shortURL];
   console.log(urlDatabase);
   res.redirect("/urls");
 });
 
 app.post("/urls/:shortURL", (req, res) => {
-  urlDatabase[req.params.shortURL] = req.body.longURL;
+  urlDatabase[req.cookies["user_id"]][req.params.shortURL] = req.body.longURL;
   res.redirect("/urls");
 });
 
@@ -163,7 +205,7 @@ app.get("/urls/:id", (req, res) => {
   let templateVars =
   {
     shortURL: req.params.id,
-    longURL: urlDatabase[shortURL],
+    longURL: urlDatabase[req.cookies["user_id"]][shortURL],
     user: users[req.cookies["user_id"]]
   };
   res.render("urls_show", templateVars);
@@ -174,11 +216,6 @@ app.listen(PORT, () => {
 });
 
 
-function generateRandomString() {
-  var randStr = "";
-  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  for (let i = 0; i < 6; i++) {
-    randStr += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-  return randStr;
-}
+//CLEAR COOKIES MAKE IT WORK!!!!!
+
+

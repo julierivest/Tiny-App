@@ -3,14 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <title>Register:</title>
+  <% include partials/_head %>
+</head>
+<body>
+  <h1>Register:</h1>
   <form action="/register" method="POST">
     <input type="email" name="email" style="width: 300px" placeholder="Email">
     <input type="password" name="password" placeholder="Password" style="width: 300px">
     <button type="submit" value="Submit">Register</button>
   </form>
-</head>
-<body>
-
 </body>
 </html>
 
