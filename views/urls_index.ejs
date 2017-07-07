@@ -9,8 +9,8 @@
   <header>
     <% include ./partials/_header %>
   </header>
-  <h2>URL Database</h2>
   <ul style="list-style: none;">
+    <h2>URL Database</h2>
     <% for (let shortUrl in URLs) { %>
       <li>
         <%= shortUrl %> &rarr; <a href="<%= URLs[shortUrl] %>"><%= URLs[shortUrl] %></a>

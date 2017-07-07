@@ -2,6 +2,8 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
+const bcrypt = require('bcrypt');
+const cookieSession = require('cookie-session')
 
 var app = express();
 var PORT = process.env.PORT || 8080; // default port 8080
@@ -49,7 +51,7 @@ function generateRandomString() {
 //returns false if it's not
 function emailExist(email) {
   for (let userKey in users) {
-    console.log(users[userKey].email);
+    //console.log(users[userKey].email);
     if (users[userKey].email === email) {
       return true;
     }
@@ -82,9 +84,10 @@ app.post("/urls", (req, res) => {
       urlDatabase[userIDKey][shortURL] = req.body.longURL;
     }
   }
+  //console.log(urlDatabase);
   //redirects to urls_show
   res.redirect("/urls/" + shortURL);
-  console.log(urlDatabase);
+  //console.log(urlDatabase);
 });
 
 //GET + /LOGIN
@@ -106,7 +109,9 @@ app.post("/login", (req, res) => {
     res.status(403);
     res.send('Email does not exist!');
   }
-  else if (userForExistingEmail(req.body.email).password !== req.body.password) {
+  else if (!bcrypt.compareSync(req.body.password, userForExistingEmail(req.body.email).password)) {
+    //console.log(userForExistingEmail(req.body.email).password, req.body.password);
+    //console.log((bcrypt.compareSync(userForExistingEmail(req.body.email).password, req.body.password)));
     res.status(403);
     res.send('Password does not exist!');
   }
@@ -128,19 +133,18 @@ app.post("/register", (req, res) => {
   }
   //add random string as userID for user registers
   let userID = generateRandomString();
-    users[userID] = {
+  users[userID] = {
     id: userID,
     email: req.body.email,
-    password: req.body.password
+    password: bcrypt.hashSync(req.body.password, 10)
   }
+  console.log("register: " + req.body.password);
+  console.log(users[userID].password);
   urlDatabase[userID] = {}
    //console.log(users);
   res.cookie("user_id", userID);
   res.redirect('/urls');
 });
-
-
-
 
 
 
@@ -151,7 +155,7 @@ app.post("/logout", (req, res) => {
 
 
 app.get("/", (req, res) => {
-  console.log(req.cookies);
+  //console.log(req.cookies);
   res.end("Hello!");
 });
 
@@ -178,11 +182,10 @@ app.get("/urls/new", (req, res) => {
 });
 
 
-
 app.post("/urls/:shortURL/delete", (req, res) => {
   let shortURL = req.params.shortURL;
   delete urlDatabase[req.cookies["user_id"]][shortURL];
-  console.log(urlDatabase);
+  //console.log(urlDatabase);
   res.redirect("/urls");
 });
 
@@ -191,11 +194,18 @@ app.post("/urls/:shortURL", (req, res) => {
   res.redirect("/urls");
 });
 
+//-----------
 
 app.get("/u/:shortURL", (req, res) => {
   let shortURL = req.params.shortURL;
-  let longURL = urlDatabase[shortURL];
-  res.redirect(longURL);
+  console.log(shortURL);
+  for (let userIDKey in urlDatabase) {
+    if (urlDatabase[userIDKey][shortURL]) {
+      var longURL = urlDatabase[userIDKey][shortURL];
+      console.log({longURL});
+    }
+    res.redirect(longURL);
+  }
 });
 
 
@@ -216,6 +226,6 @@ app.listen(PORT, () => {
 });
 
 
-//CLEAR COOKIES MAKE IT WORK!!!!!
+
 
 
