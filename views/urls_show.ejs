@@ -11,7 +11,7 @@
   </header>
   <p> Short URL: <%=shortURL%>,  Long URL: <a href="<%= longURL %>"><%= longURL %></a></p>
   <form action="/urls/<%=shortURL%>" method="post">
-    <label for="longURL">Enter new long URL:</label>
+    <label for="longURL">To change this URL, enter new version & submit:</label>
     <input id="longURL" type="text" name="longURL" placeholder="http://" style="width: 300px">
     <button type="submit" value="Update">Update</button>
   </form>

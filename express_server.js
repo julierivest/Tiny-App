@@ -3,7 +3,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const bcrypt = require('bcrypt');
-const cookieSession = require('cookie-session')
+const cookieSession = require('cookie-session');
 
 var app = express();
 var PORT = process.env.PORT || 8080; // default port 8080
@@ -11,6 +11,13 @@ var PORT = process.env.PORT || 8080; // default port 8080
 app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieParser());
+
+app.use(cookieSession({
+  name: 'session',
+  keys: ["nbrtueilwiur2903PQWDIFGP8"],
+  maxAge: 24 * 60 * 60 * 1000
+}));
+
 
 //ORIGINAL OBJECTS--------------------
 
@@ -33,6 +40,8 @@ const users = {
     password: "valpswd"
   }
 };
+
+const globalDatabase = {};
 
 //FUNCTIONS----------------------------
 
@@ -72,7 +81,7 @@ function urlsForUser(id) {
   return urlDatabase[id];
 }
 
-//ROUTES------------------------
+//ROUTES-----------------------
 
 //POST + /URLS
 app.post("/urls", (req, res) => {
@@ -80,7 +89,7 @@ app.post("/urls", (req, res) => {
   //if it is, add url pair as value to userIDKey
   let shortURL = generateRandomString();
   for (let userIDKey in urlDatabase) {
-    if (req.cookies["user_id"] === userIDKey) {
+    if (req.session.user_id === userIDKey) {
       urlDatabase[userIDKey][shortURL] = req.body.longURL;
     }
   }
@@ -94,7 +103,7 @@ app.post("/urls", (req, res) => {
 app.get("/login", (req, res) => {
   let templateVars = {
      URLs: urlDatabase,
-     user: users[req.cookies["user_id"]]
+     user: users[req.session.user_id]
   };
   res.render("login", templateVars);
 });
@@ -104,6 +113,8 @@ app.get("/register", (req, res) => {
 });
 
 
+
+//HERE!!!!!!!!!
 app.post("/login", (req, res) => {
   if (!emailExist(req.body.email)) {
     res.status(403);
@@ -116,7 +127,8 @@ app.post("/login", (req, res) => {
     res.send('Password does not exist!');
   }
   else {
-    res.cookie('user_id', userForExistingEmail(req.body.email).id);
+    req.session.user_id = userForExistingEmail(req.body.email).id;
+    //res.cookie('user_id', userForExistingEmail(req.body.email).id);
     res.redirect('/urls');
   }
 });
@@ -138,31 +150,32 @@ app.post("/register", (req, res) => {
     email: req.body.email,
     password: bcrypt.hashSync(req.body.password, 10)
   }
-  console.log("register: " + req.body.password);
-  console.log(users[userID].password);
   urlDatabase[userID] = {}
-   //console.log(users);
-  res.cookie("user_id", userID);
+  req.session.user_id = userID;
   res.redirect('/urls');
 });
 
 
-
+//when user logs out, returns to /urls
 app.post("/logout", (req, res) => {
-  res.clearCookie('user_id');
+  req.session = null
   res.redirect('/urls');
 });
 
 
 app.get("/", (req, res) => {
-  //console.log(req.cookies);
-  res.end("Hello!");
+  if (!users[req.session.user_id]) {
+    res.redirect("/login");
+  }
+  else {
+    res.redirect("urls");
+  }
 });
 
 app.get("/urls", (req, res) => {
   let templateVars = {
-    URLs: urlsForUser(req.cookies["user_id"]),
-    user: users[req.cookies["user_id"]]
+    URLs: urlsForUser(req.session.user_id),
+    user: users[req.session.user_id]
   };
   console.log(templateVars);
   res.render('urls_index', templateVars);
@@ -171,9 +184,9 @@ app.get("/urls", (req, res) => {
 app.get("/urls/new", (req, res) => {
   let templateVars = {
     URLs: urlDatabase,
-    user: users[req.cookies["user_id"]]
+    user: users[req.session.user_id]
   };
-  if (req.cookies.user_id) {
+  if (req.session.user_id) {
     res.render("urls_new", templateVars);
   }
   else {
@@ -184,43 +197,50 @@ app.get("/urls/new", (req, res) => {
 
 app.post("/urls/:shortURL/delete", (req, res) => {
   let shortURL = req.params.shortURL;
-  delete urlDatabase[req.cookies["user_id"]][shortURL];
+  delete urlDatabase[req.session.user_id][shortURL];
   //console.log(urlDatabase);
   res.redirect("/urls");
 });
 
+
 app.post("/urls/:shortURL", (req, res) => {
-  urlDatabase[req.cookies["user_id"]][req.params.shortURL] = req.body.longURL;
+  urlDatabase[req.session.user_id][req.params.shortURL] = req.body.longURL;
   res.redirect("/urls");
 });
 
-//-----------
-
+//if anyone not logged in who has an existing short URL enters it in /u/shortURL, they'll be redirected to long URL
 app.get("/u/:shortURL", (req, res) => {
   let shortURL = req.params.shortURL;
-  console.log(shortURL);
+  let longURL = "";
   for (let userIDKey in urlDatabase) {
     if (urlDatabase[userIDKey][shortURL]) {
-      var longURL = urlDatabase[userIDKey][shortURL];
-      console.log({longURL});
+      longURL = urlDatabase[userIDKey][shortURL];
     }
+  }
+  if (longURL) {
     res.redirect(longURL);
+  }
+  else {
+    res.send("Not a valid short URL");
   }
 });
 
-
+//if enter /urls/shortURL that is valid and that belongs to user who is logged in --> show the page of long URL
 app.get("/urls/:id", (req, res) => {
-  //console.log(req.params.id);
   let shortURL = req.params.id;
-  let templateVars =
-  {
-    shortURL: req.params.id,
-    longURL: urlDatabase[req.cookies["user_id"]][shortURL],
-    user: users[req.cookies["user_id"]]
-  };
-  res.render("urls_show", templateVars);
+  if (urlDatabase[req.session.user_id] && urlDatabase[req.session.user_id][shortURL]) {
+    let templateVars = {
+      shortURL: req.params.id,
+      longURL: urlDatabase[req.session.user_id][shortURL],
+      user: users[req.session.user_id]
+    };
+    res.render("urls_show", templateVars);
+  } else {
+    res.send("You do not have access to this link")
+  }
 });
 
+//confirms in console if server is started
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
