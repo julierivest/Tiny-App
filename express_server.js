@@ -6,7 +6,7 @@ const bcrypt = require('bcrypt');
 const cookieSession = require('cookie-session');
 
 var app = express();
-var PORT = process.env.PORT || 8080; // default port 8080
+var PORT = process.env.PORT || 8080;
 
 app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({extended: true}));
@@ -14,8 +14,7 @@ app.use(cookieParser());
 
 app.use(cookieSession({
   name: 'session',
-  keys: ["nbrtueilwiur2903PQWDIFGP8"],
-  maxAge: 24 * 60 * 60 * 1000
+  keys: ["92besxn0"]
 }));
 
 
@@ -29,15 +28,15 @@ const urlDatabase = {
 };
 
 const users = {
-  "JulieR": {
-    id: "JulieR",
-    email: "julier@gmail.com",
-    password: "juliepswd"
+  "user1": {
+    id: "user1",
+    email: "user1@gmail.com",
+    password: "1pswd"
   },
-  "ValR": {
-    id: "ValR",
-    email: "valr@hotmail.com",
-    password: "valpswd"
+  "user2": {
+    id: "user2",
+    email: "user2@hotmail.com",
+    password: "2pswd"
   }
 };
 
@@ -60,7 +59,6 @@ function generateRandomString() {
 //returns false if it's not
 function emailExist(email) {
   for (let userKey in users) {
-    //console.log(users[userKey].email);
     if (users[userKey].email === email) {
       return true;
     }
@@ -85,7 +83,7 @@ function urlsForUser(id) {
 
 //POST + /URLS
 app.post("/urls", (req, res) => {
-  //checking if userid is in URLdatabase
+  //checking if userid is in URL database
   //if it is, add url pair as value to userIDKey
   let shortURL = generateRandomString();
   for (let userIDKey in urlDatabase) {
@@ -93,13 +91,11 @@ app.post("/urls", (req, res) => {
       urlDatabase[userIDKey][shortURL] = req.body.longURL;
     }
   }
-  //console.log(urlDatabase);
   //redirects to urls_show
   res.redirect("/urls/" + shortURL);
-  //console.log(urlDatabase);
 });
 
-//GET + /LOGIN
+//GET + /LOGIN -> sends templateVars to /login html pg
 app.get("/login", (req, res) => {
   let templateVars = {
      URLs: urlDatabase,
@@ -108,40 +104,33 @@ app.get("/login", (req, res) => {
   res.render("login", templateVars);
 });
 
+//GET + /REGISTER -> registrationForm.ejs
 app.get("/register", (req, res) => {
   res.render("registrationForm")
 });
 
-
-
-//HERE!!!!!!!!!
+//conditions for successful user login & redirect
 app.post("/login", (req, res) => {
   if (!emailExist(req.body.email)) {
     res.status(403);
     res.send('Email does not exist!');
   }
   else if (!bcrypt.compareSync(req.body.password, userForExistingEmail(req.body.email).password)) {
-    //console.log(userForExistingEmail(req.body.email).password, req.body.password);
-    //console.log((bcrypt.compareSync(userForExistingEmail(req.body.email).password, req.body.password)));
     res.status(403);
     res.send('Password does not exist!');
   }
   else {
     req.session.user_id = userForExistingEmail(req.body.email).id;
-    //res.cookie('user_id', userForExistingEmail(req.body.email).id);
     res.redirect('/urls');
   }
 });
 
-
-
+//when new user registers, adds user info to users object -- >ENCRYPTS PASSWORD
 app.post("/register", (req, res) => {
   if (!req.body.email || !req.body.password) {
-    res.status(400);
-    res.send('Cannot submit empty field');
+    res.status(400).send('Cannot submit empty field');
   } else if (emailExist(req.body.email)) {
-    res.status(400);
-    res.send('Email already registered');
+    res.status(400).send('Email already registered');
   }
   //add random string as userID for user registers
   let userID = generateRandomString();
@@ -150,7 +139,7 @@ app.post("/register", (req, res) => {
     email: req.body.email,
     password: bcrypt.hashSync(req.body.password, 10)
   }
-  urlDatabase[userID] = {}
+  urlDatabase[userID] = {};
   req.session.user_id = userID;
   res.redirect('/urls');
 });
@@ -162,16 +151,17 @@ app.post("/logout", (req, res) => {
   res.redirect('/urls');
 });
 
-
+//redirects logged in users to /urls, and non logged in users to /login
 app.get("/", (req, res) => {
   if (!users[req.session.user_id]) {
     res.redirect("/login");
   }
   else {
-    res.redirect("urls");
+    res.redirect("/urls");
   }
 });
 
+//displays urls_index.ejs = homepage
 app.get("/urls", (req, res) => {
   let templateVars = {
     URLs: urlsForUser(req.session.user_id),
@@ -181,6 +171,7 @@ app.get("/urls", (req, res) => {
   res.render('urls_index', templateVars);
 });
 
+//if user adds new URL to be shortened, add short and long urls to database and redirect to urls_show.ejs (if logged in)
 app.get("/urls/new", (req, res) => {
   let templateVars = {
     URLs: urlDatabase,
@@ -194,11 +185,10 @@ app.get("/urls/new", (req, res) => {
   }
 });
 
-
+//if user deletes a URL pair, remove it from database and redirect to homepage (/urls)
 app.post("/urls/:shortURL/delete", (req, res) => {
   let shortURL = req.params.shortURL;
   delete urlDatabase[req.session.user_id][shortURL];
-  //console.log(urlDatabase);
   res.redirect("/urls");
 });
 
